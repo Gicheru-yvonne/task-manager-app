@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>TaskBoard App</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="/static/firebase-login.js"></script>
+    <link rel="stylesheet" href="/static/styles.css">
+    <style>
+        .container { max-width: 700px; margin: auto; padding: 20px; text-align: center; }
+        .form-group { margin: 30px 0; }
+        input[type="text"] {
+            width: 60%;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        button {
+            padding: 10px 15px;
+            font-weight: bold;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        #board-list {
+            margin-top: 40px;
+        }
+        .board-card {
+            background-color: #f0f0f0;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome to TaskBoard App</h1>
+
+        <div id="user-section">
+            <p>Logged in as: <span id="user-email">Guest</span></p>
+            <button id="logout-btn" style="display:none;" onclick="logout()">Sign Out</button>
+        </div>
+
+        <div class="form-group">
+            <h2>Create a Task Board</h2>
+            <form method="post" action="/create_board">
+                <input type="text" name="board_name" placeholder="Enter board name" required>
+                <button type="submit">Create Board</button>
+            </form>
+        </div>
+
+        <div id="board-list">
+            <h3>Your Task Boards</h3>
+            <ul id="taskboard-ul"></ul>
+        </div>
+    </div>
+
+    <script>
+        
+        async function loadBoards() {
+            const res = await fetch("/my_boards");
+            const data = await res.json();
+            const ul = document.getElementById("taskboard-ul");
+            ul.innerHTML = "";
+    
+            if (data.boards && data.boards.length > 0) {
+                data.boards.forEach(board => {
+                    const li = document.createElement("li");
+                    li.className = "board-card";
+                    
+                    li.innerHTML = `<a href="/board/${board.id}" style="text-decoration:none;color:inherit;">${board.title}</a>`;
+                    ul.appendChild(li);
+                });
+            } else {
+                ul.innerHTML = "<li>You have no task boards yet.</li>";
+            }
+        }
+    
+        window.onload = loadBoards;
+    </script>
+    
+</body>
+</html>

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Formula 1 Database</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="/static/firebase-login.js"></script>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <h1>Login to TaskBoard App</h1>
+    
+    <div id="login-box">
+        <label>Email:</label>
+        <input type="email" id="email" placeholder="Enter your email" required>
+        <br>
+        <label>Password:</label>
+        <input type="password" id="password" placeholder="Enter your password" required>
+        <br>
+        <button onclick="login()">Login</button>
+        <button onclick="signup()">Sign Up</button>
+    </div>
+
+    <p>Logged in as: <span id="user-email">Guest</span></p>
+    <button id="logout-btn" style="display:none;" onclick="logout()">Sign Out</button>
+
+    <hr>
+    <button onclick="location.href='/'">Back to Home</button>
+</body>
+</html>
