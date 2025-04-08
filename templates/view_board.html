@@ -43,10 +43,15 @@
             if (data.tasks && data.tasks.length > 0) {
                 data.tasks.forEach(task => {
                     const li = document.createElement("li");
+
+                    const completedAtText = task.completed_at
+                        ? `<br><small>✅ Completed at: ${new Date(task.completed_at).toLocaleString()}</small>`
+                        : "";
+
                     li.innerHTML = `
                         <form method="post" action="/board/{{ board_id }}/update_task/${task.id}" style="display:inline">
                             <input type="checkbox" name="complete" value="true" onchange="this.form.submit()" ${task.complete ? 'checked' : ''}>
-                            ${task.title} (Due: ${task.due_date})
+                            ${task.title} (Due: ${task.due_date})${completedAtText}
                         </form>
                     `;
                     list.appendChild(li);

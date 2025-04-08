@@ -151,11 +151,13 @@ async def fetch_tasks(request: Request, board_id: str):
             fields = doc.get("fields", {})
             if fields.get("board_id", {}).get("stringValue", "") == board_id:
                 tasks.append({
-                    "id": doc["name"].split("/")[-1],
-                    "title": fields.get("title", {}).get("stringValue", ""),
-                    "due_date": fields.get("due_date", {}).get("stringValue", ""),
-                    "complete": fields.get("complete", {}).get("booleanValue", False)
-                })
+    "id": doc["name"].split("/")[-1],
+    "title": fields.get("title", {}).get("stringValue", ""),
+    "due_date": fields.get("due_date", {}).get("stringValue", ""),
+    "complete": fields.get("complete", {}).get("booleanValue", False),
+    "completed_at": fields.get("completed_at", {}).get("timestampValue", None)
+})
+
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
@@ -168,12 +170,22 @@ async def update_task_completion(request: Request, board_id: str, task_id: str, 
         return RedirectResponse("/login", status_code=302)
 
     is_complete = complete.lower() == "true"
-    update_data = {
-        "fields": {
-            "complete": {"booleanValue": is_complete}
-        }
+    
+    # Always update the 'complete' field
+    update_fields = {
+        "complete": {"booleanValue": is_complete}
     }
-    patch_url = f"{FIRESTORE_URL}/tasks/{task_id}?updateMask.fieldPaths=complete"
+
+    # If completed, add timestamp
+    if is_complete:
+        timestamp = datetime.utcnow().isoformat() + "Z"  # ISO format for Firestore
+        update_fields["completed_at"] = {"timestampValue": timestamp}
+    else:
+        update_fields["completed_at"] = {"nullValue": None}  # Clear timestamp if unchecked
+
+    update_data = {"fields": update_fields}
+    patch_url = f"{FIRESTORE_URL}/tasks/{task_id}?updateMask.fieldPaths=complete&updateMask.fieldPaths=completed_at"
+    
     response = requests.patch(patch_url, json=update_data)
     if response.status_code == 200:
         return RedirectResponse(f"/board/{board_id}", status_code=302)
