@@ -4,6 +4,8 @@ from fastapi import FastAPI, Request, Form, Header, HTTPException
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi import Body
+from datetime import datetime
 
 FIREBASE_API_KEY = "AIzaSyCuglc7ZGBb6ICnqsOg9pVeojNhgythB8k"
 PROJECT_ID = "assignment-2-c9bd8"
@@ -27,7 +29,6 @@ def verify_token(authorization: str = Header(None)):
 async def home_page(request: Request):
     return templates.TemplateResponse("main.html", {"request": request})
 
-
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
     token = request.cookies.get("token")
@@ -35,13 +36,9 @@ async def login_page(request: Request):
         verify_url = f"https://identitytoolkit.googleapis.com/v1/accounts:lookup?key={FIREBASE_API_KEY}"
         verify_response = requests.post(verify_url, json={"idToken": token})
         user_info = verify_response.json()
-
-        
         if "users" in user_info:
             return RedirectResponse("/", status_code=302)
-
     return templates.TemplateResponse("login.html", {"request": request})
-
 
 @app.get("/main", response_class=HTMLResponse)
 async def main_page(request: Request):
@@ -52,10 +49,7 @@ async def dashboard_page(request: Request):
     token = request.cookies.get("token")
     if not token:
         return RedirectResponse("/login", status_code=302)
-
     return templates.TemplateResponse("dashboard.html", {"request": request})
-
-
 
 @app.get("/my_boards")
 async def get_my_boards(request: Request):
@@ -67,7 +61,6 @@ async def get_my_boards(request: Request):
     user_info = requests.post(verify_url, json={"idToken": token}).json()
     uid = user_info.get("users", [{}])[0].get("localId", "")
 
-    
     r = requests.get(f"{FIRESTORE_URL}/taskboards")
     boards = []
     try:
@@ -95,7 +88,6 @@ async def view_board(request: Request, board_id: str):
     if not token:
         return RedirectResponse("/login", status_code=302)
 
-   
     verify_url = f"https://identitytoolkit.googleapis.com/v1/accounts:lookup?key={FIREBASE_API_KEY}"
     verify_response = requests.post(verify_url, json={"idToken": token})
     user_info = verify_response.json()
@@ -105,7 +97,6 @@ async def view_board(request: Request, board_id: str):
 
     uid = user_info["users"][0]["localId"]
 
-    
     r = requests.get(f"{FIRESTORE_URL}/taskboards/{board_id}")
     if r.status_code != 200:
         return JSONResponse(status_code=404, content={"error": "Taskboard not found"})
@@ -113,7 +104,6 @@ async def view_board(request: Request, board_id: str):
     board_data = r.json()
     fields = board_data.get("fields", {})
 
-    
     owner = fields.get("owner", {}).get("stringValue", "")
     members = fields.get("members", {}).get("arrayValue", {}).get("values", [])
     member_ids = [m.get("stringValue", "") for m in members]
@@ -127,22 +117,79 @@ async def view_board(request: Request, board_id: str):
         "title": fields.get("title", {}).get("stringValue", "")
     })
 
-
-
-@app.post("/create_board")
-async def create_board(request: Request, board_name: str = Form(...)):
-    
+@app.post("/board/{board_id}/add_task")
+async def add_task(request: Request, board_id: str, task_title: str = Form(...), due_date: str = Form(...)):
     token = request.cookies.get("token")
     if not token:
         return RedirectResponse("/login", status_code=302)
 
-    
+    # Firestore format
+    data = {
+        "fields": {
+            "board_id": {"stringValue": board_id},
+            "title": {"stringValue": task_title},
+            "due_date": {"stringValue": due_date},
+            "complete": {"booleanValue": False}
+        }
+    }
+
+    res = requests.post(f"{FIRESTORE_URL}/tasks", json=data)
+    if res.status_code == 200:
+        return RedirectResponse(f"/board/{board_id}", status_code=302)
+    return JSONResponse(status_code=500, content={"error": "Failed to add task"})
+
+@app.get("/board/{board_id}/tasks")
+async def fetch_tasks(request: Request, board_id: str):
+    token = request.cookies.get("token")
+    if not token:
+        return JSONResponse(status_code=401, content={"error": "Not authenticated"})
+
+    r = requests.get(f"{FIRESTORE_URL}/tasks")
+    tasks = []
+    try:
+        for doc in r.json().get("documents", []):
+            fields = doc.get("fields", {})
+            if fields.get("board_id", {}).get("stringValue", "") == board_id:
+                tasks.append({
+                    "id": doc["name"].split("/")[-1],
+                    "title": fields.get("title", {}).get("stringValue", ""),
+                    "due_date": fields.get("due_date", {}).get("stringValue", ""),
+                    "complete": fields.get("complete", {}).get("booleanValue", False)
+                })
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+    return {"tasks": tasks}
+
+@app.post("/board/{board_id}/update_task/{task_id}")
+async def update_task_completion(request: Request, board_id: str, task_id: str, complete: str = Form(...)):
+    token = request.cookies.get("token")
+    if not token:
+        return RedirectResponse("/login", status_code=302)
+
+    is_complete = complete.lower() == "true"
+    update_data = {
+        "fields": {
+            "complete": {"booleanValue": is_complete}
+        }
+    }
+    patch_url = f"{FIRESTORE_URL}/tasks/{task_id}?updateMask.fieldPaths=complete"
+    response = requests.patch(patch_url, json=update_data)
+    if response.status_code == 200:
+        return RedirectResponse(f"/board/{board_id}", status_code=302)
+    return JSONResponse(status_code=500, content={"error": "Failed to update task"})
+
+@app.post("/create_board")
+async def create_board(request: Request, board_name: str = Form(...)):
+    token = request.cookies.get("token")
+    if not token:
+        return RedirectResponse("/login", status_code=302)
+
+   
     verify_url = f"https://identitytoolkit.googleapis.com/v1/accounts:lookup?key={FIREBASE_API_KEY}"
     verify_response = requests.post(verify_url, json={"idToken": token})
     user_info = verify_response.json()
-    print("🔍 Firebase verify response:", user_info)
 
-    
     if "users" not in user_info or not user_info["users"]:
         return JSONResponse(status_code=403, content={"error": "Invalid or expired token"})
 
@@ -150,7 +197,7 @@ async def create_board(request: Request, board_name: str = Form(...)):
     if not uid:
         return JSONResponse(status_code=403, content={"error": "UID not found in token"})
 
-   
+    
     data = {
         "fields": {
             "title": {"stringValue": board_name},
@@ -163,11 +210,10 @@ async def create_board(request: Request, board_name: str = Form(...)):
         }
     }
 
+    
     response = requests.post(f"{FIRESTORE_URL}/taskboards", json=data)
-    print("📤 Firestore response:", response.status_code, response.text)
-
     if response.status_code == 200:
-        return RedirectResponse("/", status_code=302)
+        return RedirectResponse("/dashboard", status_code=302)
     return JSONResponse(status_code=500, content={"error": "Failed to create task board"})
 
 @app.post("/board/{board_id}/invite")
@@ -176,6 +222,7 @@ async def invite_user(request: Request, board_id: str, user_email: str = Form(..
     if not token:
         return RedirectResponse("/login", status_code=302)
 
+    
     verify_url = f"https://identitytoolkit.googleapis.com/v1/accounts:lookup?key={FIREBASE_API_KEY}"
     user_info = requests.post(verify_url, json={"idToken": token}).json()
     if "users" not in user_info:
@@ -183,14 +230,14 @@ async def invite_user(request: Request, board_id: str, user_email: str = Form(..
 
     current_uid = user_info["users"][0]["localId"]
 
-    # Get the board
+    
     board_res = requests.get(f"{FIRESTORE_URL}/taskboards/{board_id}")
     board_data = board_res.json()
     board_owner = board_data.get("fields", {}).get("owner", {}).get("stringValue", "")
     if current_uid != board_owner:
         return JSONResponse(status_code=403, content={"error": "Only the board owner can invite users"})
 
-    # ✅ Query /users for that email
+    
     users_res = requests.get(f"{FIRESTORE_URL}/users")
     user_docs = users_res.json().get("documents", [])
     invited_uid = ""
@@ -203,6 +250,7 @@ async def invite_user(request: Request, board_id: str, user_email: str = Form(..
     if not invited_uid:
         return JSONResponse(status_code=404, content={"error": "User not found"})
 
+    
     members = board_data.get("fields", {}).get("members", {}).get("arrayValue", {}).get("values", [])
     current_uids = [m.get("stringValue", "") for m in members]
 
@@ -228,30 +276,23 @@ async def invite_user(request: Request, board_id: str, user_email: str = Form(..
     else:
         return JSONResponse(status_code=500, content={"error": "Failed to update members"})
 
-
 @app.post("/save_user")
-async def save_user(request: Request):
-    token = request.headers.get("authorization", "").replace("Bearer ", "")
-    if not token:
-        return JSONResponse(status_code=403, content={"error": "Missing token"})
-
-    verify_url = f"https://identitytoolkit.googleapis.com/v1/accounts:lookup?key={FIREBASE_API_KEY}"
-    verify_response = requests.post(verify_url, json={"idToken": token})
-    user_info = verify_response.json()
-
-    if "users" not in user_info:
-        return JSONResponse(status_code=403, content={"error": "Invalid token"})
-
+async def save_user(request: Request, payload: dict = Body(...), authorization: str = Header(None)):
+    user_info = verify_token(authorization)
     uid = user_info["users"][0]["localId"]
-    data = await request.json()
-    email = data.get("email", "")
+    email = payload.get("email")
 
-    firestore_data = {
+    if not email:
+        return JSONResponse(status_code=400, content={"error": "Email required"})
+
+    user_data = {
         "fields": {
-            "uid": {"stringValue": uid},
-            "email": {"stringValue": email}
+            "email": {"stringValue": email},
+            "uid": {"stringValue": uid}
         }
     }
 
-    response = requests.post(f"{FIRESTORE_URL}/users", json=firestore_data)
-    return JSONResponse(status_code=response.status_code, content={"message": "User saved"})
+    res = requests.post(f"{FIRESTORE_URL}/users", json=user_data)
+    if res.status_code == 200:
+        return {"message": "User saved"}
+    return JSONResponse(status_code=500, content={"error": "Failed to save user"})

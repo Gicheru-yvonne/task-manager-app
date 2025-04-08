@@ -10,7 +10,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 
-// ✅ Login function
+
 function login() {
   const email = document.getElementById("email").value;
   const password = document.getElementById("password").value;
@@ -34,7 +34,7 @@ function login() {
     });
 }
 
-// ✅ Signup function + Firestore sync
+
 function signup() {
   const email = document.getElementById("email").value;
   const password = document.getElementById("password").value;
@@ -49,7 +49,7 @@ function signup() {
       return userCredential.user.getIdToken().then((idToken) => {
         document.cookie = `token=${idToken}; path=/; max-age=3600; SameSite=Lax`;
 
-        // ✅ Save user in Firestore
+        
         fetch("/save_user", {
           method: "POST",
           headers: {
@@ -77,7 +77,7 @@ function logout() {
   });
 }
 
-// ✅ Sync UI
+
 auth.onAuthStateChanged((user) => {
   if (user) {
     console.log("✅ User is logged in:", user.email);
