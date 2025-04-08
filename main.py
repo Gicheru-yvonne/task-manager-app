@@ -191,6 +191,41 @@ async def update_task_completion(request: Request, board_id: str, task_id: str, 
         return RedirectResponse(f"/board/{board_id}", status_code=302)
     return JSONResponse(status_code=500, content={"error": "Failed to update task"})
 
+@app.post("/board/{board_id}/edit_task/{task_id}")
+async def edit_task(request: Request, board_id: str, task_id: str, new_title: str = Form(...), new_due_date: str = Form(...)):
+    token = request.cookies.get("token")
+    if not token:
+        return RedirectResponse("/login", status_code=302)
+
+    update_data = {
+        "fields": {
+            "title": {"stringValue": new_title},
+            "due_date": {"stringValue": new_due_date}
+        }
+    }
+
+    patch_url = f"{FIRESTORE_URL}/tasks/{task_id}?updateMask.fieldPaths=title&updateMask.fieldPaths=due_date"
+    res = requests.patch(patch_url, json=update_data)
+
+    if res.status_code == 200:
+        return RedirectResponse(f"/board/{board_id}", status_code=302)
+    return JSONResponse(status_code=500, content={"error": "Failed to update task"})
+
+
+@app.post("/board/{board_id}/delete_task/{task_id}")
+async def delete_task(request: Request, board_id: str, task_id: str):
+    token = request.cookies.get("token")
+    if not token:
+        return RedirectResponse("/login", status_code=302)
+
+    delete_url = f"{FIRESTORE_URL}/tasks/{task_id}"
+    res = requests.delete(delete_url)
+
+    if res.status_code == 200:
+        return RedirectResponse(f"/board/{board_id}", status_code=302)
+    return JSONResponse(status_code=500, content={"error": "Failed to delete task"})
+
+
 @app.post("/create_board")
 async def create_board(request: Request, board_name: str = Form(...)):
     token = request.cookies.get("token")
