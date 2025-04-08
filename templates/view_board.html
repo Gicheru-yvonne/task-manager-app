@@ -6,6 +6,15 @@
 <body>
     <h1>📋 {{ title }}</h1>
     <p>Board ID: {{ board_id }}</p>
+
+    <!-- Invite User Form -->
+    <h2>Invite a User</h2>
+    <form method="post" action="/board/{{ board_id }}/invite">
+        <input type="email" name="user_email" placeholder="Enter user email" required>
+        <button type="submit">Invite</button>
+    </form>
+
+    <br>
     <a href="/dashboard">🔙 Back to Dashboard</a>
 </body>
 </html>
