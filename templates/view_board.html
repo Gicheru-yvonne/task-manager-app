@@ -88,12 +88,14 @@
             <button type="submit">🗑 Delete</button>
         </form>
         <div id="edit-form-${task.id}" style="display:none; margin-top:5px;">
-            <form method="post" action="/board/{{ board_id }}/edit_task/${task.id}">
-                <input type="text" name="new_title" value="${task.title}" required>
-                <input type="date" name="new_due_date" value="${task.due_date}" required>
-                <button type="submit">Save</button>
-            </form>
-        </div>
+    <form method="post" action="/board/{{ board_id }}/edit_task/${task.id}">
+        <input type="text" name="new_title" value="${task.title}" required>
+        <input type="date" name="new_due_date" value="${task.due_date}" required>
+        <input type="text" name="assigned_to_uid" placeholder="Assign to UID (optional)">
+        <button type="submit">Save</button>
+    </form>
+</div>
+
     `;
 
     list.appendChild(li);

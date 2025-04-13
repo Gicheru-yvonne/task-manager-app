@@ -247,14 +247,20 @@ async def update_task_completion(
     return RedirectResponse(f"/board/{board_id}", status_code=302)
 
 @app.post("/board/{board_id}/edit_task/{task_id}")
-async def edit_task(request: Request, board_id: str, task_id: str, new_title: str = Form(...), new_due_date: str = Form(...)):
+async def edit_task(
+    request: Request,
+    board_id: str,
+    task_id: str,
+    new_title: str = Form(...),
+    new_due_date: str = Form(...),
+    assigned_to_uid: str = Form(None)  # ✅ Optional new field
+):
     token = request.cookies.get("token")
     if not token:
         return RedirectResponse("/login", status_code=302)
 
     try:
-        
-        decoded = verify_token(request)  
+        decoded = verify_token(request)
     except Exception:
         return RedirectResponse("/login", status_code=302)
 
@@ -262,12 +268,17 @@ async def edit_task(request: Request, board_id: str, task_id: str, new_title: st
 
     update_data = {
         "title": new_title,
-        "due_date": new_due_date
+        "due_date": new_due_date,
     }
+
+    if assigned_to_uid:
+        update_data["assigned_to"] = [assigned_to_uid]
+        update_data["was_unassigned"] = False  # ✅ Clear red highlight
 
     task_ref.update(update_data)
 
     return RedirectResponse(f"/board/{board_id}", status_code=302)
+
 
 
 
