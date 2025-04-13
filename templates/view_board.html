@@ -4,8 +4,6 @@
     <title>TaskBoard - {{ title }}</title>
 </head>
 <body>
-    
-
 
     <h1>📋 {{ title }}</h1>
     <p>Board ID: {{ board_id }}</p>
@@ -24,11 +22,10 @@
     <hr>
 
     <h3>❌ Remove a User</h3>
-<form method="post" action="/board/{{ board_id }}/remove_user">
-    <input type="email" name="user_email" placeholder="Enter user email" required>
-    <button type="submit">Remove</button>
-</form>
-
+    <form method="post" action="/board/{{ board_id }}/remove_user">
+        <input type="email" name="user_email" placeholder="Enter user email" required>
+        <button type="submit">Remove</button>
+    </form>
 
     <h2>🙋 Invite a User</h2>
     <form method="post" action="/board/{{ board_id }}/invite">
@@ -42,78 +39,87 @@
         <input type="text" name="new_title" placeholder="Enter new board name" required>
         <button type="submit">Rename Board</button>
     </form>
-    
 
     <h2>🗋 Tasks</h2>
-    <ul id="task-list">
-        
-    </ul>
+    <div id="task-counters" style="margin-bottom: 10px; font-weight: bold;"></div>
+    <ul id="task-list"></ul>
 
     <script>
         async function loadTasks() {
             const res = await fetch("/board/{{ board_id }}/tasks");
             const data = await res.json();
             const list = document.getElementById("task-list");
+            const counters = document.getElementById("task-counters");
+
             list.innerHTML = "";
-    
+            counters.innerHTML = "";
+
+            let total = 0;
+            let complete = 0;
+            let active = 0;
+
             if (data.tasks && data.tasks.length > 0) {
                 data.tasks.forEach(task => {
-    const li = document.createElement("li");
+                    total++;
+                    if (task.complete) {
+                        complete++;
+                    } else {
+                        active++;
+                    }
 
-    let completedInfo = "";
-    if (task.complete && task.completed_at) {
-        const completedDate = new Date(task.completed_at);
-        completedInfo = `<div style="color:green; font-size:small;">✅ Completed at: ${completedDate.toLocaleString()}</div>`;
-    }
+                    const li = document.createElement("li");
 
-    let highlightStyle = "";
-    if (task.was_unassigned && (!task.assigned_to || task.assigned_to.length === 0)) {
-        highlightStyle = "color:red;";
-    }
+                    let completedInfo = "";
+                    if (task.complete && task.completed_at) {
+                        const completedDate = new Date(task.completed_at);
+                        completedInfo = `<div style="color:green; font-size:small;">✅ Completed at: ${completedDate.toLocaleString()}</div>`;
+                    }
 
-    if (highlightStyle) {
-    li.setAttribute("style", highlightStyle);
-}
+                    let highlightStyle = "";
+                    if (task.was_unassigned && (!task.assigned_to || task.assigned_to.length === 0)) {
+                        highlightStyle = "color:red;";
+                    }
 
+                    if (highlightStyle) {
+                        li.setAttribute("style", highlightStyle);
+                    }
 
-    li.innerHTML = `
-        <form method="post" action="/board/{{ board_id }}/update_task/${task.id}" style="display:inline">
-           <input type="hidden" name="complete" value="false">
-           <input type="checkbox" name="complete" value="true" onchange="this.form.submit()" ${task.complete ? 'checked' : ''}>
-           ${task.title} (Due: ${task.due_date})
-        </form>
-        ${completedInfo}
-        <button onclick="showEditForm('${task.id}', '${task.title}', '${task.due_date}')">✏ Edit</button>
-        <form method="post" action="/board/{{ board_id }}/delete_task/${task.id}" style="display:inline;">
-            <button type="submit">🗑 Delete</button>
-        </form>
-        <div id="edit-form-${task.id}" style="display:none; margin-top:5px;">
-    <form method="post" action="/board/{{ board_id }}/edit_task/${task.id}">
-        <input type="text" name="new_title" value="${task.title}" required>
-        <input type="date" name="new_due_date" value="${task.due_date}" required>
-        <input type="text" name="assigned_to_uid" placeholder="Assign to UID (optional)">
-        <button type="submit">Save</button>
-    </form>
-</div>
+                    li.innerHTML = `
+                        <form method="post" action="/board/{{ board_id }}/update_task/${task.id}" style="display:inline">
+                            <input type="hidden" name="complete" value="false">
+                            <input type="checkbox" name="complete" value="true" onchange="this.form.submit()" ${task.complete ? 'checked' : ''}>
+                            ${task.title} (Due: ${task.due_date})
+                        </form>
+                        ${completedInfo}
+                        <button onclick="showEditForm('${task.id}', '${task.title}', '${task.due_date}')">✏ Edit</button>
+                        <form method="post" action="/board/{{ board_id }}/delete_task/${task.id}" style="display:inline;">
+                            <button type="submit">🗑 Delete</button>
+                        </form>
+                        <div id="edit-form-${task.id}" style="display:none; margin-top:5px;">
+                            <form method="post" action="/board/{{ board_id }}/edit_task/${task.id}">
+                                <input type="text" name="new_title" value="${task.title}" required>
+                                <input type="date" name="new_due_date" value="${task.due_date}" required>
+                                <input type="text" name="assigned_to_uid" placeholder="Assign to UID (optional)">
+                                <button type="submit">Save</button>
+                            </form>
+                        </div>
+                    `;
 
-    `;
+                    list.appendChild(li);
+                });
 
-    list.appendChild(li);
-});
-
+                counters.innerText = `Active: ${active} | Completed: ${complete} | Total: ${total}`;
             } else {
                 list.innerHTML = "<li>No tasks found.</li>";
             }
         }
-    
+
         function showEditForm(taskId, title, dueDate) {
             const form = document.getElementById(`edit-form-${taskId}`);
             form.style.display = form.style.display === "none" ? "block" : "none";
         }
-    
+
         window.onload = loadTasks;
     </script>
-    
 </body>
-
 </html>
