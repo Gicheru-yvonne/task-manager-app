@@ -168,21 +168,29 @@ async def add_task(request: Request, board_id: str, task_title: str = Form(...),
     except Exception:
         return RedirectResponse("/login", status_code=302)
 
-    uid = decoded.get("sub")  
+    uid = decoded.get("sub")
 
+    # 🚫 Check for duplicate task title on the same board
+    existing_query = db.collection("tasks")\
+        .where("board_id", "==", board_id)\
+        .where("title", "==", task_title)\
+        .stream()
 
+    if any(existing_query):
+        return JSONResponse(status_code=400, content={"error": "A task with that name already exists on this board."})
 
+    # ✅ Proceed to create task
     task_data = {
-    "board_id": board_id,
-    "title": task_title,
-    "due_date": due_date,
-    "complete": False,
-    "assigned_to": [str(uid)]  
-}
-
+        "board_id": board_id,
+        "title": task_title,
+        "due_date": due_date,
+        "complete": False,
+        "assigned_to": [str(uid)]
+    }
 
     db.collection("tasks").add(task_data)
     return RedirectResponse(f"/board/{board_id}", status_code=302)
+
 
 
 @app.post("/save_user")
@@ -406,3 +414,39 @@ async def remove_user_from_board(request: Request, board_id: str, user_email: st
                 })
 
     return RedirectResponse(f"/board/{board_id}", status_code=302)
+
+@app.post("/board/{board_id}/delete")
+async def delete_board(request: Request, board_id: str):
+    try:
+        decoded = verify_token(request)
+    except Exception:
+        return RedirectResponse("/login", status_code=302)
+
+    current_uid = decoded.get("sub")
+
+    board_ref = db.collection("taskboards").document(board_id)
+    board_doc = board_ref.get()
+
+    if not board_doc.exists:
+        return JSONResponse(status_code=404, content={"error": "Board not found"})
+
+    board = board_doc.to_dict()
+
+    # ✅ Only the creator can delete
+    if board["created_by"] != current_uid:
+        return JSONResponse(status_code=403, content={"error": "Only the creator can delete this board"})
+
+    # ✅ Must be the only member
+    if len(board.get("member_ids", [])) > 1:
+        return JSONResponse(status_code=400, content={"error": "Remove all members first"})
+
+    # ✅ Must have no tasks
+    task_query = db.collection("tasks").where("board_id", "==", board_id).stream()
+    if any(task_query):
+        return JSONResponse(status_code=400, content={"error": "Delete all tasks first"})
+
+    # ✅ Delete the board
+    board_ref.delete()
+
+    return RedirectResponse("/dashboard", status_code=302)
+
