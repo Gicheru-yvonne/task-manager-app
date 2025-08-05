@@ -31,9 +31,8 @@ Dashboards:
  Writing maintainable, testable, and well-organized Python code
 
 
-## 🛠 Setup (for demonstration)
+ Setup 
 
 To run this locally (you’ll need your own Firebase project):
-
-```bash
+bash
 uvicorn main:app --reload
